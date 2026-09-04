@@ -6,6 +6,8 @@ spring:
   cloud:
     nacos:
       server-addr: ${SERVER_IP:localhost}:8848
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
       discovery:
         server-addr: ${SERVER_IP:localhost}:8848
   rabbitmq:
