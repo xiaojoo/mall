@@ -12,7 +12,7 @@ spring:
     redis:
       host: ${SERVER_IP:localhost}
       port: 6379
-      password: CHANGE_ME
+      password: ${REDIS_PASSWORD:123456}
   application:
     name: mall-cart
   jackson:

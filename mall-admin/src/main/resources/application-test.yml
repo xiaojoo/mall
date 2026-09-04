@@ -4,7 +4,7 @@ spring:
       driver-class-name: com.mysql.cj.jdbc.Driver
       jdbc-url: jdbc:mysql://${SERVER_IP:localhost}:3306/mall_admin?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
       username: root
-      password: CHANGE_ME
+      password: ${MYSQL_PASSWORD:admin123}
       maximum-pool-size: 100
       minimum-idle: 10
       connection-timeout: 60000
