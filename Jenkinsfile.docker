@@ -41,22 +41,6 @@ pipeline {
     GATEWAY_HOST_PORT = '88'   // 网关映射到宿主机的端口（nginx /api 反代目标）
   }
 
-  parameters {
-    choice(
-      name: 'PROJECT_NAME',
-      choices: [
-        'mall-gateway','mall-auth','mall-admin','mall-product','mall-member',
-        'mall-order','mall-cart','mall-ware','mall-coupon','mall-search',
-        'mall-seckill','mall-third-party','mall-weapp'
-      ],
-      description: '本次单独部署的模块'
-    )
-    string(name: 'IMAGE_TAG', defaultValue: 'latest', description: '镜像标签')
-    // —— 可选：docker / k8s ——
-    choice(name: 'DEPLOY_MODE', choices: ['docker', 'k8s'], description: '部署方式（可选）')
-    booleanParam(name: 'USE_NGINX', defaultValue: true, description: '是否用已安装的 nginx 对外暴露（生成配置并 reload）')
-    booleanParam(name: 'DEPLOY', defaultValue: true, description: '是否实际执行部署')
-  }
 
   stages {
     stage('拉取代码') {
@@ -68,6 +52,16 @@ pipeline {
           if (!ip) { ip = sh(script: "hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i!=\"127.0.0.1\"){print \$i; break}}'", returnStdout: true).trim() }
           env.SERVER_IP = ip ?: '127.0.0.1'
           echo "SERVER_IP=${env.SERVER_IP}"
+          // —— 模块名：由 Job 参数 PROJECT_NAME 注入。拆成 13 条流水线时每条固定传一个模块，即可并行 ——
+          env.PROJECT_NAME = (env.PROJECT_NAME ?: '').trim()
+          if (!env.PROJECT_NAME) {
+            env.PROJECT_NAME = 'mall-gateway'
+            echo "未指定 PROJECT_NAME，默认构建 ${env.PROJECT_NAME}"
+          }
+          env.IMAGE_TAG   = env.IMAGE_TAG   ?: 'latest'
+          env.DEPLOY_MODE = env.DEPLOY_MODE ?: 'docker'
+          env.USE_NGINX   = env.USE_NGINX   ?: 'true'
+          env.DEPLOY      = env.DEPLOY      ?: 'true'
           // 各模块与端口的映射（用于 docker -p 与 nginx 说明）
           def ports = [
             'mall-gateway':'88',      'mall-auth':'10011', 'mall-admin':'10012',
@@ -76,10 +70,10 @@ pipeline {
             'mall-search':'10019',    'mall-seckill':'10020','mall-third-party':'10022',
             'mall-weapp':'10021'
           ]
-          def p = ports[params.PROJECT_NAME]
-          if (p == null) { error("未知模块: ${params.PROJECT_NAME}") }
+          def p = ports[env.PROJECT_NAME]
+          if (p == null) { error("未知模块: ${env.PROJECT_NAME}（13 条流水线请各自传对应 PROJECT_NAME）") }
           env.MODULE_PORT = p
-          echo "构建 ${params.PROJECT_NAME} (tag=${params.IMAGE_TAG})，端口 ${env.MODULE_PORT}，方式 ${params.DEPLOY_MODE}"
+          echo "构建 ${env.PROJECT_NAME} (tag=${env.IMAGE_TAG})，端口 ${env.MODULE_PORT}，方式 ${env.DEPLOY_MODE}"
         }
       }
     }
@@ -87,21 +81,21 @@ pipeline {
     stage('构建可执行Jar') {
       steps {
         // 用 Maven 容器构建（Jenkins 节点无需预装 maven/JDK21；工作区挂载进容器，产物落回 target/）
-        sh 'docker run --rm -v "$PWD":/usr/src -v "$HOME/.m2":/root/.m2 -w /usr/src maven:3.9-eclipse-temurin-21 mvn -Dmaven.test.skip=true -gs /usr/src/mvn-settings.xml clean package -pl ' + params.PROJECT_NAME + ' -am'
+        sh 'docker run --rm -v "$PWD":/usr/src -v "$HOME/.m2":/root/.m2 -w /usr/src maven:3.9-eclipse-temurin-21 mvn -Dmaven.test.skip=true -gs /usr/src/mvn-settings.xml clean package -pl ' + env.PROJECT_NAME + ' -am'
       }
     }
 
     stage('构建并推送镜像') {
       steps {
         script {
-          def image = "${REGISTRY}/${NAMESPACE}/${params.PROJECT_NAME}:${params.IMAGE_TAG}"
+          def image = "${REGISTRY}/${NAMESPACE}/${env.PROJECT_NAME}:${env.IMAGE_TAG}"
           // 本地私有仓库（registry:2，无鉴权）直接 build + push 即可，无需 docker login
-          sh "docker build -t ${image} ./${params.PROJECT_NAME}"
+          sh "docker build -t ${image} ./${env.PROJECT_NAME}"
           sh "docker push ${image}"
           // 若以后用需要鉴权的仓库，改成：
           // withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIAL_ID, usernameVariable: 'DK_USER', passwordVariable: 'DK_PASS')]) {
           //   sh "docker login ${REGISTRY} -u ${DK_USER} -p ${DK_PASS}"
-          //   sh "docker build -t ${image} ./${params.PROJECT_NAME}"
+          //   sh "docker build -t ${image} ./${env.PROJECT_NAME}"
           //   sh "docker push ${image}"
           // }
         }
@@ -109,11 +103,11 @@ pipeline {
     }
 
     stage('部署') {
-      when { expression { params.DEPLOY } }
+      when { expression { env.DEPLOY == 'true' } }
       steps {
-        input(id: "deploy-${params.PROJECT_NAME}", message: "确认部署 ${params.PROJECT_NAME} (${params.DEPLOY_MODE}) 到本机?")
+        input(id: "deploy-${env.PROJECT_NAME}", message: "确认部署 ${env.PROJECT_NAME} (${env.DEPLOY_MODE}) 到本机?")
         script {
-          if (params.DEPLOY_MODE == 'docker') {
+          if (env.DEPLOY_MODE == 'docker') {
             deployByDocker()
           } else {
             deployByK8s()
@@ -125,7 +119,7 @@ pipeline {
 
   post {
     failure {
-      echo "构建失败：${params.PROJECT_NAME}"
+      echo "构建失败：${env.PROJECT_NAME}"
     }
   }
 }
@@ -134,9 +128,9 @@ pipeline {
 // docker 方式：每个模块单独 run；可选配置 nginx 并 reload
 // ----------------------------------------------------------------------------
 def deployByDocker() {
-  def image = "${REGISTRY}/${NAMESPACE}/${params.PROJECT_NAME}:${params.IMAGE_TAG}"
+  def image = "${REGISTRY}/${NAMESPACE}/${env.PROJECT_NAME}:${env.IMAGE_TAG}"
   // 短名别名：docker ps 里显示 mall-gateway:latest，而不是 127.0.0.1:5000/mall/mall-gateway:latest
-  def shortImage = "${params.PROJECT_NAME}:${params.IMAGE_TAG}"
+  def shortImage = "${env.PROJECT_NAME}:${env.IMAGE_TAG}"
   def port  = env.MODULE_PORT
   // 确保网络存在
   sh "docker network inspect ${env.DOCKER_NETWORK} >/dev/null 2>&1 || docker network create -d bridge ${env.DOCKER_NETWORK}"
@@ -145,9 +139,9 @@ def deployByDocker() {
   sh "docker tag ${image} ${shortImage}"
 
   // 先停旧容器，再起新容器（每个模块独立容器，名称=模块名）
-  sh "docker rm -f ${params.PROJECT_NAME} 2>/dev/null || true"
+  sh "docker rm -f ${env.PROJECT_NAME} 2>/dev/null || true"
   sh """
-    docker run -d --name ${params.PROJECT_NAME} \\
+    docker run -d --name ${env.PROJECT_NAME} \\
       --network ${env.DOCKER_NETWORK} --restart unless-stopped \\
       -e SPRING_PROFILES_ACTIVE=prod \\
       -e SERVER_IP=${env.SERVER_IP} \\
@@ -156,7 +150,7 @@ def deployByDocker() {
   """
 
   // 可选：用已安装的 nginx 对外暴露（反代到网关）
-  if (params.USE_NGINX) {
+  if (env.USE_NGINX == 'true') {
     configureNginx()
   }
 }
@@ -207,9 +201,9 @@ server {
 // 保留 k8s 方式的选项（与现有 Jenkinsfile 一致）
 // ----------------------------------------------------------------------------
 def deployByK8s() {
-  sh "ls ${params.PROJECT_NAME}/deploy || true"
+  sh "ls ${env.PROJECT_NAME}/deploy || true"
   withCredentials([kubeconfigContent(credentialsId: 'demo-kubeconfig', variable: 'KUBECONFIG_CONFIG')]) {
     sh 'mkdir -p ~/.kube/ && echo "$KUBECONFIG_CONFIG" > ~/.kube/config'
-    sh "cd ${params.PROJECT_NAME} && envsubst < deploy/${params.PROJECT_NAME}-deploy.yaml | kubectl apply -f -"
+    sh "cd ${env.PROJECT_NAME} && envsubst < deploy/${env.PROJECT_NAME}-deploy.yaml | kubectl apply -f -"
   }
 }
