@@ -123,8 +123,6 @@ spring:
               filters:
                 - RewritePath=/api/file/(?<segment>.*),/file/$\{segment}
 
-          default-filters:
-            - AddResponseHeader=X-Response-Time, %{responseTime}
 
           discovery:
             locator:
