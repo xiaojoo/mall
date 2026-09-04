@@ -1,0 +1,35 @@
+# Nacos Config for mall-cart
+# Data ID: mall-cart.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+
+spring:
+  # datasource: 本服务无数据库访问（纯 Redis/ES/消息），移除残留配置
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+      database: 0
+      timeout: 10s
+  
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+server:
+  port: 10016
+# 会员端 JWT（C 端登录态，微博/微信 OAuth 签发，业务服务解析；生产环境务必修改 secret）
+member:
+  jwt:
+    secret: YOUR_MEMBER_JWT_SECRET_AT_LEAST_32_BYTES
+    expire-seconds: 604800
+    header: token

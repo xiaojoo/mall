@@ -1,0 +1,28 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-test
+spec:
+  ingressClassName: nginx    ########使用的实际负载均衡器类型
+  rules:
+  - host: "test.nginx.com"    #########nginx的域名
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-svc   ###nginx的svc name
+            port:
+              number: 80
+  - host: "test.tomcat.com"   ######tomcat的域名
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: tomcat-svc  ###tomcat的svc name
+            port:
+              number: 8080

@@ -1,0 +1,208 @@
+// ============================================================================
+// Jenkinsfile.docker —— 微服务 DOCKER 独立部署流水线（每个模块单独构建/部署）
+//
+// 说明：
+//  - 现有 Jenkinsfile 是 K8s 版；本文件是 Docker 版，供「单机/中小规模 Docker 部署」使用。
+//  - 每个模块单独跑一条流水线（参数 PROJECT_NAME 选模块），实现「每一个模块单独部署」。
+//  - 复用已安装的 nginx 作为统一入口反向代理（USE_NGINX 选项控制）。
+//  - 服务间通过 Nacos 注册发现，由 mall-gateway 统一路由，nginx 只需反代到网关。
+//
+// 前置要求（部署代理节点）：
+//  - 装有 docker 与 docker compose（若走 compose）或直接 docker run
+//  - 装有 maven + JDK21（或用下方注释的 maven 容器方式）
+//  - 已安装 nginx（宿主机），可用于反向代理
+//  - 已登录镜像仓库（或使用 withCredentials 注入凭据）
+//
+// 使用：Jenkins → 新建 Pipeline → 勾选 "Use Groovy Sandbox"（或关闭沙箱）→ Script Path 填 Jenkinsfile.docker
+// ============================================================================
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+  }
+
+  environment {
+    // —— 镜像仓库（本机私有仓库 registry:2 @ 127.0.0.1:5000，无需鉴权；若换仓库改这里）——
+    REGISTRY = '127.0.0.1:5000'
+    NAMESPACE = 'mall'
+    DOCKER_CREDENTIAL_ID = 'aliyun-id'
+
+    // —— Docker 网络（服务之间互相访问用）——
+    DOCKER_NETWORK = 'mall-net'
+
+    // —— nginx（用 install-infra-basic.sh 起的 mall nginx 容器，独立于别的项目）——
+    NGINX_CONF_DIR = '/data/mall/nginx/conf.d'     // mall nginx 容器挂载的配置目录（写这里 + docker exec reload，无需 sudo）
+    NGINX_CONTAINER = 'nginx'                      // mall nginx 容器名
+    NGINX_SERVER_NAME = 'mall.example.com'
+    NGINX_HTTP_PORT = '8088'   // nginx 监听端口（避开已被占用的 80）
+    NGINX_FRONTEND_ROOT = '/data/mall/web'   // 前端静态目录（部署 vite/dist 产物）
+    GATEWAY_HOST_PORT = '88'   // 网关映射到宿主机的端口（nginx /api 反代目标）
+  }
+
+  parameters {
+    choice(
+      name: 'PROJECT_NAME',
+      choices: [
+        'mall-gateway','mall-auth','mall-admin','mall-product','mall-member',
+        'mall-order','mall-cart','mall-ware','mall-coupon','mall-search',
+        'mall-seckill','mall-third-party','mall-weapp'
+      ],
+      description: '本次单独部署的模块'
+    )
+    string(name: 'IMAGE_TAG', defaultValue: 'latest', description: '镜像标签')
+    // —— 可选：docker / k8s ——
+    choice(name: 'DEPLOY_MODE', choices: ['docker', 'k8s'], description: '部署方式（可选）')
+    booleanParam(name: 'USE_NGINX', defaultValue: true, description: '是否用已安装的 nginx 对外暴露（生成配置并 reload）')
+    booleanParam(name: 'DEPLOY', defaultValue: true, description: '是否实际执行部署')
+  }
+
+  stages {
+    stage('拉取代码') {
+      steps {
+        checkout scm
+        script {
+          // 自动探测本机对外 IP（同 install-infra.sh 的 detect_ip），供容器内 ${SERVER_IP:localhost} 占位符解析为宿主机地址
+          def ip = sh(script: "ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i==\"src\"){print \$(i+1); exit}}'", returnStdout: true).trim()
+          if (!ip) { ip = sh(script: "hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i!=\"127.0.0.1\"){print \$i; break}}'", returnStdout: true).trim() }
+          env.SERVER_IP = ip ?: '127.0.0.1'
+          echo "SERVER_IP=${env.SERVER_IP}"
+          // 各模块与端口的映射（用于 docker -p 与 nginx 说明）
+          def ports = [
+            'mall-gateway':'88',      'mall-auth':'10011', 'mall-admin':'10012',
+            'mall-product':'10013',   'mall-member':'10014','mall-order':'10015',
+            'mall-cart':'10016',      'mall-ware':'10017',  'mall-coupon':'10018',
+            'mall-search':'10019',    'mall-seckill':'10020','mall-third-party':'10022',
+            'mall-weapp':'10021'
+          ]
+          def p = ports[params.PROJECT_NAME]
+          if (p == null) { error("未知模块: ${params.PROJECT_NAME}") }
+          env.MODULE_PORT = p
+          echo "构建 ${params.PROJECT_NAME} (tag=${params.IMAGE_TAG})，端口 ${env.MODULE_PORT}，方式 ${params.DEPLOY_MODE}"
+        }
+      }
+    }
+
+    stage('构建可执行Jar') {
+      steps {
+        // 用 Maven 容器构建（Jenkins 节点无需预装 maven/JDK21；工作区挂载进容器，产物落回 target/）
+        sh 'docker run --rm -v "$PWD":/usr/src -v "$HOME/.m2":/root/.m2 -w /usr/src maven:3.9-eclipse-temurin-21 mvn -Dmaven.test.skip=true -gs /usr/src/mvn-settings.xml clean package -pl ' + params.PROJECT_NAME + ' -am'
+      }
+    }
+
+    stage('构建并推送镜像') {
+      steps {
+        script {
+          def image = "${REGISTRY}/${NAMESPACE}/${params.PROJECT_NAME}:${params.IMAGE_TAG}"
+          // 本地私有仓库（registry:2，无鉴权）直接 build + push 即可，无需 docker login
+          sh "docker build -t ${image} ./${params.PROJECT_NAME}"
+          sh "docker push ${image}"
+          // 若以后用需要鉴权的仓库，改成：
+          // withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIAL_ID, usernameVariable: 'DK_USER', passwordVariable: 'DK_PASS')]) {
+          //   sh "docker login ${REGISTRY} -u ${DK_USER} -p ${DK_PASS}"
+          //   sh "docker build -t ${image} ./${params.PROJECT_NAME}"
+          //   sh "docker push ${image}"
+          // }
+        }
+      }
+    }
+
+    stage('部署') {
+      when { expression { params.DEPLOY } }
+      steps {
+        input(id: "deploy-${params.PROJECT_NAME}", message: "确认部署 ${params.PROJECT_NAME} (${params.DEPLOY_MODE}) 到本机?")
+        script {
+          if (params.DEPLOY_MODE == 'docker') {
+            deployByDocker()
+          } else {
+            deployByK8s()
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    failure {
+      echo "构建失败：${params.PROJECT_NAME}"
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// docker 方式：每个模块单独 run；可选配置 nginx 并 reload
+// ----------------------------------------------------------------------------
+def deployByDocker() {
+  def image = "${REGISTRY}/${NAMESPACE}/${params.PROJECT_NAME}:${params.IMAGE_TAG}"
+  // 短名别名：docker ps 里显示 mall-gateway:latest，而不是 127.0.0.1:5000/mall/mall-gateway:latest
+  def shortImage = "${params.PROJECT_NAME}:${params.IMAGE_TAG}"
+  def port  = env.MODULE_PORT
+  // 确保网络存在
+  sh "docker network inspect ${env.DOCKER_NETWORK} >/dev/null 2>&1 || docker network create -d bridge ${env.DOCKER_NETWORK}"
+
+  // 给镜像打一个短名本地别名（指向同一 image id，不影响 GITHUB 推送的完整名）
+  sh "docker tag ${image} ${shortImage}"
+
+  // 先停旧容器，再起新容器（每个模块独立容器，名称=模块名）
+  sh "docker rm -f ${params.PROJECT_NAME} 2>/dev/null || true"
+  sh """
+    docker run -d --name ${params.PROJECT_NAME} \\
+      --network ${env.DOCKER_NETWORK} --restart unless-stopped \\
+      -e SPRING_PROFILES_ACTIVE=prod \\
+      -e SERVER_IP=${env.SERVER_IP} \\
+      -e NACOS_ADDR=${env.NACOS_ADDR ?: '127.0.0.1:8848'} \\
+      -p ${port}:${port} ${shortImage}
+  """
+
+  // 可选：用已安装的 nginx 对外暴露（反代到网关）
+  if (params.USE_NGINX) {
+    configureNginx()
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 生成 nginx 反向代理配置并 reload（nginx 已安装在宿主机）
+// ----------------------------------------------------------------------------
+def configureNginx() {
+  // 反代到网关所在宿主机端口；网关再经 Nacos 路由到各服务
+  def upstream = "127.0.0.1:${env.GATEWAY_HOST_PORT}"
+  def conf = """
+# auto-generated by Jenkinsfile.docker
+server {
+    # 容器内 nginx 监听 80；宿主机 ${env.NGINX_HTTP_PORT} 由 `-p ${env.NGINX_HTTP_PORT}:80` 映射
+    listen       80;
+    server_name  ${env.NGINX_SERVER_NAME};
+
+    # 前端静态（Vue SPA），把构建产物(如 vite/dist)放到 ${env.NGINX_FRONTEND_ROOT}（挂到容器 /usr/share/nginx/html）
+    root   /usr/share/nginx/html;
+    index  index.html;
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+
+    # API / 网关，转发到网关（网关再经 Nacos 路由到各服务）
+    location /api/ {
+        proxy_pass http://${upstream};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+"""
+  // 写入 mall 的 nginx 容器挂载目录（install-infra-basic.sh 建的 nginx 容器）,再 reload；无需 sudo、不碰宿主 nginx
+  writeFile file: env.NGINX_CONF_DIR + '/mall.conf', text: conf
+  sh "docker exec ${env.NGINX_CONTAINER} nginx -t && docker exec ${env.NGINX_CONTAINER} nginx -s reload"
+}
+
+// ----------------------------------------------------------------------------
+// 保留 k8s 方式的选项（与现有 Jenkinsfile 一致）
+// ----------------------------------------------------------------------------
+def deployByK8s() {
+  sh "ls ${params.PROJECT_NAME}/deploy || true"
+  withCredentials([kubeconfigContent(credentialsId: 'demo-kubeconfig', variable: 'KUBECONFIG_CONFIG')]) {
+    sh 'mkdir -p ~/.kube/ && echo "$KUBECONFIG_CONFIG" > ~/.kube/config'
+    sh "cd ${params.PROJECT_NAME} && envsubst < deploy/${params.PROJECT_NAME}-deploy.yaml | kubectl apply -f -"
+  }
+}

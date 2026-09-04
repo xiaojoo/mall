@@ -1,0 +1,108 @@
+curl -k https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml  -o deploy.yaml
+
+kubectl apply -f deploy.yaml
+
+kubectl get pods -n ingress-nginx
+
+kubectl get all -n ingress-nginx
+
+kubectl apply -f nginx.yml
+
+kubectl apply -f nginx-service.yml
+
+kubectl get svc -n ingress-nginx
+
+kubectl apply -f ingress-nginx.yaml
+
+kubectl get ingress -n ingress-nginx
+
+kubectl describe ingress ingress-nginx -n ingress-nginx
+
+kubectl get pods -o wide -n ingress-nginx
+
+kubectl get svc -n ingress-nginx | grep ingress
+
+kubectl get pods -n ingress-nginx
+
+kubectl exec -it nginx-696fdcf747-kqh87 -n ingress-nginx -- /bin/sh
+echo "ingress web1" > /usr/share/nginx/html/index.html
+exit
+
+kubectl exec -it nginx-696fdcf747-wrzzb -n ingress-nginx -- /bin/sh
+echo "ingress web2" > /usr/share/nginx/html/index.html
+exit
+
+kubectl apply -f nginx-uri-1.yml
+
+kubectl apply -f nginx-service-uri-1.yml
+
+kubectl apply -f nginx-uri-2.yml
+
+kubectl apply -f nginx-service-uri-2.yml
+
+kubectl get svc -n ingress-nginx
+
+kubectl apply -f ingress-nginx-uri.yaml
+
+kubectl get ingress -n ingress-nginx
+
+kubectl describe ingress ingress-uri -n ingress-nginx
+
+kubectl get pods -o wide -n ingress-nginx
+
+kubectl get svc -n ingress-nginx  |grep ingress
+
+
+kubectl exec -it nginx-uri-1-6b56dc6cbd-bcskm -n ingress-nginx -- /bin/sh
+mkdir /usr/share/nginx/html/svc1
+echo "sssvc1" > /usr/share/nginx/html/svc1/index.html
+exit
+
+kubectl exec -it nginx-uri-1-6b56dc6cbd-wp4dr -n ingress-nginx -- /bin/sh
+mkdir /usr/share/nginx/html/svc1
+echo "sssvc1" > /usr/share/nginx/html/svc1/index.html
+exit
+
+kubectl exec -it nginx-uri-2-5cb4f8669f-mvhzs -n ingress-nginx -- /bin/sh
+mkdir /usr/share/nginx/html/svc2
+echo "sssvc2" > /usr/share/nginx/html/svc2/index.html
+exit
+
+kubectl exec -it nginx-uri-2-5cb4f8669f-rjrsv -n ingress-nginx -- /bin/sh
+mkdir /usr/share/nginx/html/svc2
+echo "sssvc2" > /usr/share/nginx/html/svc2/index.html
+exit
+
+mkdir ingress-https
+cd ingress-https/
+
+openssl genrsa -out nginx.key 2048
+openssl req -new -x509 -key nginx.key -out nginx.pem -days 365
+
+Country Name (2 letter code) [XX]:CN
+State or Province Name (full name) []:GD
+Locality Name (eg, city) [Default City]:SZ
+Organization Name (eg, company) [Default Company Ltd]:IT
+Organizational Unit Name (eg, section) []:it
+Common Name (eg, your name or your server's hostname) []:kubemsbhost
+Email Address []:
+
+ls
+nginx.key  nginx.pem
+
+kubectl create secret tls nginx-tls-secret --cert=nginx.pem --key=nginx.key -n ingress-nginx
+
+kubectl get secrets -n ingress-nginx | grep nginx-tls-secret
+
+kubectl apply -f ingress-https.yml
+
+firefox https://www.kubemsbhost.com &
+
+kubectl apply -f ingress-nodeport.yml
+
+vim /etc/hosts
+
+localhost www.kubemsb3.com
+curl www.kubemsb3.com
+
+参考文档：https://blog.csdn.net/Forbidden_City/article/details/141476065

@@ -1,0 +1,69 @@
+spring:
+  config:
+    import: "nacos:mall-member.yaml"
+  application:
+    name: mall-member
+  cloud:
+    nacos:
+      server-addr: ${SERVER_IP:localhost}:8848
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+  datasource:
+    username: root
+    password: CHANGE_ME
+    url: jdbc:mysql://${SERVER_IP:localhost}:3306/mall_ums?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+      database: 0
+      timeout: 10s
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  # Session 存储到 Redis
+  session:
+    store-type: redis
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+    banner: false
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+server:
+  port: 10014
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.mall.member: DEBUG
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+
+# 会员端 JWT（C 端登录态，微博/微信 OAuth 签发，业务服务解析；生产环境务必修改 secret）
+member:
+  jwt:
+    secret: YOUR_MEMBER_JWT_SECRET_AT_LEAST_32_BYTES
+    expire-seconds: 604800
+    header: token

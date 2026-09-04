@@ -1,0 +1,50 @@
+# Nacos Config for mall-admin
+# Data ID: mall-admin.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+#
+# 注意：springdoc 必须是嵌套对象格式（如下），不能写成字符串
+# 否则启动报：Failed to bind properties under 'springdoc'
+
+spring:
+  datasource:
+    username: root
+    password: CHANGE_ME
+    url: jdbc:mysql://${SERVER_IP:localhost}:3306/mall_admin?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+      database: 0
+      timeout: 10s
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+# 生产环境关闭 API 文档（开发环境可改为 true 或删除本段）
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+
+server:
+  port: 10012
+
+logging:
+  level:
+    root: INFO
+    com.mall.admin: DEBUG

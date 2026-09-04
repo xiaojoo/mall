@@ -1,0 +1,29 @@
+# Nacos Config for mall-weapp
+# Data ID: mall-weapp.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+
+spring:
+  # datasource: 本服务无数据库访问（纯 Redis/ES/消息），移除残留配置
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+server:
+  port: 10021
+
+logging:
+  level:
+    com.mall.weapp: debug

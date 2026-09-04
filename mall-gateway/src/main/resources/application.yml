@@ -1,0 +1,22 @@
+spring:
+  config:
+    import: "nacos:mall-gateway.yaml"
+  cloud:
+    nacos:
+      server-addr: ${SERVER_IP:localhost}:8848
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+      config:
+        server-addr: ${SERVER_IP:localhost}:8848
+  application:
+    name: mall-gateway
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+  main:
+    web-application-type: reactive
+server:
+  port: 88
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG

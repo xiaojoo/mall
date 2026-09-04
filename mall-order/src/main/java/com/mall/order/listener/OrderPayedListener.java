@@ -1,0 +1,68 @@
+package com.mall.order.listener;
+
+import com.alipay.api.AlipayApiException;
+import com.alipay.api.internal.util.AlipaySignature;
+import com.mall.order.config.AlipayTemplate;
+import com.mall.order.service.OrderService;
+import com.mall.order.vo.PayAsyncVo;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+
+@RestController
+@RequiredArgsConstructor
+public class OrderPayedListener {
+
+
+    private final OrderService orderService;
+
+
+    private final AlipayTemplate alipayTemplate;
+
+    @PostMapping(value = "/payed/notify")
+    public String handleAliPayed(PayAsyncVo asyncVo, HttpServletRequest request) throws AlipayApiException, UnsupportedEncodingException {
+        // 只要收到支付宝的异步通知，返回 success 支付宝便不再通知
+        // 获取支付宝POST过来反馈信息
+        // 需要验签
+        Map<String, String> params = new HashMap<>();
+        Map<String, String[]> requestParams = request.getParameterMap();
+        // System.out.println("支付宝通知到位了……数据：" + requestParams);
+        // return "success";
+        for (String name : requestParams.keySet()) {
+            String[] values = requestParams.get(name);
+            String valueStr = "";
+            for (int i = 0; i < values.length; i++) {
+                valueStr = (i == values.length - 1) ? valueStr + values[i]
+                        : valueStr + values[i] + ",";
+            }
+            // 乱码解决，这段代码在出现乱码时使用
+            // valueStr = new String(valueStr.getBytes("ISO-8859-1"), "utf-8");
+            params.put(name, valueStr);
+        }
+
+        boolean signVerified = AlipaySignature.rsaCheckV1(params, alipayTemplate.getAlipay_public_key(),
+                alipayTemplate.getCharset(), alipayTemplate.getSign_type()); // 调用SDK验证签名
+
+        if (signVerified) {
+            System.out.println("签名验证成功...");
+            // 去修改订单状态
+            return orderService.handlePayResult(asyncVo);
+        } else {
+            System.out.println("签名验证失败...");
+            return "error";
+        }
+    }
+
+//    @PostMapping(value = "/pay/notify")
+//    public String asyncNotify(@RequestBody String notifyData) {
+//        // 异步通知结果
+//        return orderService.asyncNotify(notifyData);
+//    }
+}

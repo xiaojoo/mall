@@ -1,0 +1,79 @@
+# Nacos Config for mall-third-party
+# Data ID: mall-third-party.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+server:
+  port: 10022
+
+# OSS 配置（阿里云）
+alicloud:
+  oss:
+    endpoint: oss-cn-hangzhou.aliyuncs.com
+    bucket: mall-xiaojoo
+    access-key: CHANGE_ME_OSS_ACCESS_KEY
+    secret-key: CHANGE_ME_OSS_SECRET_KEY
+
+  # 短信配置（阿里云）
+    sms:
+      host: https://wwsms.market.alicloudapi.com
+      path: /send_sms
+      appcode: CHANGE_ME_SMS_APPCODE
+      sign: CST_11253
+      skin: 908e94ccf08b4476ba6c876d13f084ad
+
+# MinIO 对象存储（代码 @Value 读驼峰键，这里同样用驼峰；endpoint/密钥需改为实际值）
+minio:
+  endpoint: http://${SERVER_IP:localhost}:9000
+  accessKey: CHANGE_ME
+  secretKey: CHANGE_ME
+  bucketName: default
+  # 预签名 URL 有效期（天）
+  urlExpiryDays: 7
+  # 公开读模式：true 时上传直接返回永久 URL（需存储桶为公开读策略，建桶时自动设置）
+  publicRead: true
+  # 允许上传的文件类型前缀（逗号分隔），默认仅图片
+  allowedContentTypes: image/,text/,application/pdf,application/msword,application/vnd.ms-,application/vnd.openxmlformats-officedocument.,application/octet-stream,video/webm,audio/wav
+  # 单文件大小上限（MB）
+  maxFileSizeMB: 150
+
+logging:
+  level:
+    root: INFO
+    com.mall.thirdparty: DEBUG
+
+# 微信公众号（测试号，网页授权登录）
+wx:
+  mp:
+    # 微信 OAuth 回调的公网入口（FRP 隧道，需能访问到 mall-order 的 /wx/portal/public/callBack）
+    callback: http://CHANGE_ME_WECHAT_CALLBACK
+    # 登录成功后跳回的前端地址
+    login-redirect: http://${SERVER_IP:localhost}:5173
+    # 微信网页授权基址
+    authorize-url: https://open.weixin.qq.com/connect/oauth2/authorize
+    configs:
+      - app-id: CHANGE_ME_WECHAT_APPID
+        secret: CHANGE_ME_WECHAT_APPSECRET
+        # 服务器配置用的 Token（网页授权登录用不到；如配置公众号服务器消息需与后台一致）
+        token: CHANGE_ME_WECHAT_TOKEN
+        # aes-key 仅消息加解密需要（公众号后台随机生成 43 位），网页授权登录可不配
+
+# 会员端 JWT（C 端登录态，微博/微信 OAuth 签发，业务服务解析；生产环境务必修改 secret）
+member:
+  jwt:
+    secret: YOUR_MEMBER_JWT_SECRET_AT_LEAST_32_BYTES
+    expire-seconds: 604800
+    header: token

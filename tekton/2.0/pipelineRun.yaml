@@ -1,0 +1,35 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: tekton-kn-sample-
+spec:
+  pipelineRef:
+    name: "demo.pipeline"
+  taskRunTemplate:
+    serviceAccountName: "pipeline-account"
+  taskRunSpecs:
+    - pipelineTaskName: build-image
+      computeResources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+  workspaces:
+    - name: git-source
+      persistentVolumeClaim:
+        claimName: tekton-git-pvc
+    - name: docker-regcred
+      secret:
+        defaultMode: 420
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+        secretName: docker-regcred
+  params:
+    - name: repo_url
+      value: https://gitee.com/sunxiaojie/mall.git
+    - name: repo_revision
+      value: master
+    - name: image-registry
+      value: crpi-jnk3ch80my2cet7k.cn-shenzhen.personal.cr.aliyuncs.com/mall-devops
+    - name: image-repo-name
+      value: hello-world

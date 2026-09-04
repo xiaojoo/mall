@@ -1,0 +1,36 @@
+spring:
+  config:
+    import: "nacos:mall-third-party.yaml"
+  cloud:
+    nacos:
+      server-addr: ${SERVER_IP:localhost}:8848
+      # 服务注册地址
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+    alicloud:
+      access-key: CHANGE_ME_OSS_ACCESS_KEY
+      secret-key: CHANGE_ME_OSS_SECRET_KEY
+      oss:
+        endpoint: oss-cn-beijing.aliyuncs.com
+        bucket: mall-xiaojoo
+      sms:
+        host: https://wwsms.market.alicloudapi.com
+        path: /send_sms
+        appcode: CHANGE_ME_SMS_APPCODE
+        sign: CST_11253
+        skin: 908e94ccf08b4476ba6c876d13f084ad
+    util:
+      enabled: false
+  application:
+    name: mall-third-party
+wx:
+  mp:
+    # 微信 OAuth 回调的公网入口（FRP 隧道）
+    callback: http://CHANGE_ME_PUBLIC_IP
+    # 登录成功后跳回的前端地址
+    loginRedirect: http://${SERVER_IP:localhost}:5173
+    configs:
+      - appId: CHANGE_ME_WECHAT_APPID     # 测试号 appid
+        secret: CHANGE_ME_WECHAT_APPSECRET
+        token: CHANGE_ME_WECHAT_TOKEN      # 接口配置里的Token值（与测试号页面一致）
+        aesKey:                          # 明文模式可不填

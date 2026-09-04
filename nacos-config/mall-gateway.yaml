@@ -1,0 +1,140 @@
+# Nacos Config for mall-gateway
+# Data ID: mall-gateway.yaml
+# Group: DEFAULT_GROUP
+# Format: YAML
+#
+# 注意：Spring Cloud Gateway 5.x 配置前缀为 spring.cloud.gateway.server.webflux
+# （4.x 的 spring.cloud.gateway.routes 已失效）
+#
+# 路由约定：
+# - 前后端分离 API 服务（控制器映射带 /api 前缀）→ 直接透传 /api/**，不剥离前缀
+# - Web CRUD / 小程序服务（控制器映射不带 /api 前缀）→ 剥离 /api 前缀后转发
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # 会员系统（API 控制器映射 /api/member/**，透传）
+            - id: mall-member
+              uri: lb://mall-member
+              predicates:
+                - Path=/api/member/**
+
+            # 商品系统（API 控制器映射 /api/product/**，透传）
+            - id: mall-product
+              uri: lb://mall-product
+              predicates:
+                - Path=/api/product/**
+
+            # 订单系统（API 控制器映射 /api/order/**，透传）
+            - id: mall-order
+              uri: lb://mall-order
+              predicates:
+                - Path=/api/order/**
+
+            # 仓库系统（web CRUD 控制器映射 /ware/**，剥离 /api）
+            - id: mall-ware
+              uri: lb://mall-ware
+              predicates:
+                - Path=/api/ware/**
+              filters:
+                - StripPrefix=1
+
+            # 优惠券系统（web CRUD 控制器映射 /coupon/**，剥离 /api）
+            - id: mall-coupon
+              uri: lb://mall-coupon
+              predicates:
+                - Path=/api/coupon/**
+              filters:
+                - StripPrefix=1
+
+            # 认证系统（API 控制器映射 /api/auth/**、/api/sms/**，透传）
+            - id: mall-auth
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/auth/**,/api/sms/**
+
+            # 图形验证码（控制器映射 /captcha.jpg，剥离 /api）
+            - id: mall-auth-captcha
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/captcha.jpg
+              filters:
+                - StripPrefix=1
+
+            # 后台管理（JWT 权限系统：控制器映射 /sys/**，剥离 /api）
+            # 注意：/sys/schedule**、/sys/scheduleLog** 仍由 mall-admin 提供（定时任务未迁移），
+            #       必须放在 mall-auth 的 /api/sys/** 路由之前，避免被吞
+            - id: mall-admin-schedule
+              uri: lb://mall-admin
+              predicates:
+                - Path=/api/sys/schedule/**,/api/sys/scheduleLog/**
+              filters:
+                - StripPrefix=1
+
+            - id: mall-auth-sys
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/sys/**
+              filters:
+                - StripPrefix=1
+
+            # 购物车（API 控制器映射 /api/cart/**，透传）
+            - id: mall-cart
+              uri: lb://mall-cart
+              predicates:
+                - Path=/api/cart/**
+
+            # 搜索（API 控制器映射 /api/search/**，透传）
+            - id: mall-search
+              uri: lb://mall-search
+              predicates:
+                - Path=/api/search/**
+
+            # 秒杀（API 控制器映射 /api/seckill/**，透传）
+            - id: mall-seckill
+              uri: lb://mall-seckill
+              predicates:
+                - Path=/api/seckill/**
+
+            # 微信小程序（控制器映射 /weapp/**，剥离 /api）
+            - id: mall-weapp
+              uri: lb://mall-weapp
+              predicates:
+                - Path=/api/weapp/**
+              filters:
+                - StripPrefix=1
+
+            # 第三方服务（OSS 上传签名等，控制器映射 /oss/** 等，重写剥离 /api/thirdparty）
+            - id: mall-thirdparty
+              uri: lb://mall-third-party
+              predicates:
+                - Path=/api/thirdparty/**
+              filters:
+                - RewritePath=/api/thirdparty/(?<segment>.*),/$\{segment}
+
+            # 第三方服务 Minio 文件上传（MinioController 映射 /file/**，重写剥离 /api/file）
+            - id: mall-thirdparty-file
+              uri: lb://mall-third-party
+              predicates:
+                - Path=/api/file/**
+              filters:
+                - RewritePath=/api/file/(?<segment>.*),/file/$\{segment}
+
+          default-filters:
+            - AddResponseHeader=X-Response-Time, %{responseTime}
+
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+
+server:
+  port: 88
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG

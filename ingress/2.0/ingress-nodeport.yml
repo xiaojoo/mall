@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx3
+  namespace: ingress-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx3
+  template:
+    metadata:
+      labels:
+        app: nginx3
+    spec:
+      containers:
+      - name: c1
+        image: nginx:1.15-alpine
+        imagePullPolicy: IfNotPresent
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service3
+  namespace: ingress-nginx
+  labels:
+    app: nginx3
+spec:
+  type: NodePort						# NodePort类型服务
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: nginx3
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-nginx3
+  namespace: ingress-nginx
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  ingressClassName: nginx                # 使用 spec.ingressClassName 替代注解
+  rules:
+  - host: www.kubemsb3.com                                                 # 域名
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: nginx-service3                    # 对应服务名
+            port:
+              number: 80

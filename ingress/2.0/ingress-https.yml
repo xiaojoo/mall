@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx2
+  namespace: ingress-nginx
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx2
+  template:
+    metadata:
+      labels:
+        app: nginx2
+    spec:
+      containers:
+      - name: c1
+        image: nginx:1.15-alpine
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+        - name: https
+          containerPort: 443
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service2
+  namespace: ingress-nginx
+  labels:
+    app: nginx2
+spec:
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  - name: https
+    port: 443
+    targetPort: 443
+  selector:
+    app: nginx2
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-nginx2
+  namespace: ingress-nginx
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  tls:
+  - hosts:
+    - www.kubemsbhost.com                                                     # 域名
+    secretName: nginx-tls-secret                                  # 调用前面创建的secret
+  ingressClassName: nginx                # 使用 spec.ingressClassName 替代注解
+  rules:
+  - host: www.kubemsbhost.com                                                 # 域名
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: nginx-service2                     # 对应服务名
+            port:
+              number: 80

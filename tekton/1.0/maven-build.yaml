@@ -1,0 +1,25 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: maven-build
+spec:
+  params:
+  - name: MAVEN_OPTS
+    type: string
+    default: "-Dmaven.test.skip=true"
+  - name: MAVEN_COMMAND
+    type: string
+    default: "clean install"
+
+  workspaces:
+  - name: source
+    description: The source code directory
+
+  steps:
+  - name: build
+    image: crpi-jnk3ch80my2cet7k.cn-shenzhen.personal.cr.aliyuncs.com/mall-devops/maven:3.8.8-ibmjava-8
+    script: |
+      #!/bin/sh
+      set -e
+      mvn $(params.MAVEN_OPTS) -gs $(workspaces.source.path)/mvn-settings.xml $(params.MAVEN_COMMAND)
+    workingDir: $(workspaces.source.path)

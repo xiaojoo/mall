@@ -1,0 +1,23 @@
+# 如果kube-proxy使用的是IPVS模式，你需要启用staticARP
+
+kubectl edit configmap -n kube-system kube-proxy
+# 设置staticARP为true
+mode: "ipvs"
+ipvs:
+  strictARP: true
+
+# 创建资源
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.5/config/manifests/metallb-native.yaml
+
+# 查看资源
+kubectl get pod -n metallb-system
+NAME                          READY   STATUS    RESTARTS   AGE
+controller-79d46b9996-thtw2   1/1     Running   0          2m35s
+speaker-9r59c                 1/1     Running   0          2m34s
+speaker-shdvj                 1/1     Running   0          2m34s
+speaker-w4g96                 1/1     Running   0          2m34s
+
+# 设置ip地址池
+kubectl apply -f config.yaml
+
+参考文档：https://blog.csdn.net/weixin_48711696/article/details/138117392

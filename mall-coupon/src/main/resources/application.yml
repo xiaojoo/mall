@@ -1,0 +1,44 @@
+spring:
+  config:
+    import: "nacos:mall-coupon.yaml"
+  application:
+    name: mall-coupon
+  cloud:
+    nacos:
+      server-addr: ${SERVER_IP:localhost}:8848
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+  datasource:
+    username: root
+    password: CHANGE_ME
+    url: jdbc:mysql://${SERVER_IP:localhost}:3306/mall_sms?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+      database: 0
+      timeout: 10s
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+server:
+  port: 10018
+
+logging:
+  level:
+    root: INFO
+    com.mall.coupon: DEBUG

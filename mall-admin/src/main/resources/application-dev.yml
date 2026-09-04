@@ -1,0 +1,34 @@
+server:
+  port: 10012
+spring:
+  datasource:
+    hikari:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      jdbc-url: jdbc:mysql://${SERVER_IP:localhost}:3306/mall_admin?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+      username: root
+      password: CHANGE_ME
+      maximum-pool-size: 100
+      minimum-idle: 10
+      connection-timeout: 60000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+  data:
+    redis:
+      open: false
+      database: 0
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+      timeout: 6000ms
+      jedis:
+        pool:
+          max-active: 1000
+          max-wait: -1ms
+          max-idle: 10
+          min-idle: 5
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  application:
+    name: mall-admin

@@ -1,0 +1,3 @@
+com.mall.common.jwt.MemberJwtAutoConfiguration
+com.mall.common.jackson.JacksonAutoConfiguration
+com.mall.common.exception.RRExceptionAutoConfiguration

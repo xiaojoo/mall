@@ -1,0 +1,53 @@
+spring:
+  config:
+    import: "nacos:mall-seckill.yaml"
+  application:
+    name: mall-seckill
+  cloud:
+    nacos:
+      server-addr: ${SERVER_IP:localhost}:8848
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+      database: 0
+      timeout: 10s
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  # RabbitMQ 配置（秒杀队列）
+  rabbitmq:
+    host: ${SERVER_IP:localhost}
+    port: 5672
+    username: guest
+    password: CHANGE_ME
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 1
+
+mybatis-plus:
+  mapper-locations: classpath:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+
+server:
+  port: 10020
+
+logging:
+  level:
+    root: INFO
+    com.mall.seckill: DEBUG

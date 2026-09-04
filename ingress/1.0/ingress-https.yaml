@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-test
+spec:
+  tls:
+    - hosts:
+        - nginx.test.com     ###制定使用tls的主机
+        - tomcat.test.com
+      secretName: tls-secret   ###指定secret
+  ingressClassName: nginx
+  rules:
+  - host: "nginx.test.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-svc
+            port:
+              number: 80
+  - host: "tomcat.test.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: tomcat-svc
+            port:
+              number: 8080

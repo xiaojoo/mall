@@ -1,0 +1,25 @@
+spring:
+  config:
+    import: ""
+  session:
+    store-type: none
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    discovery:
+      enabled: false
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+management:
+  health:
+    redis:
+      enabled: false
+    diskspace:
+      enabled: false
+  endpoints:
+    enabled-by-default: false

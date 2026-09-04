@@ -1,0 +1,160 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+    gateway:
+      server:
+        webflux:
+          routes:
+            # 会员系统（API 控制器映射 /api/member/**，透传）
+            - id: member_route
+              uri: lb://mall-member
+              predicates:
+                - Path=/api/member/**
+
+            # 仓库系统（web CRUD 控制器映射 /ware/**，剥离 /api）
+            - id: ware_route
+              uri: lb://mall-ware
+              predicates:
+                - Path=/api/ware/**
+              filters:
+                - RewritePath=/api/(?<segment>.*),/$\{segment}
+
+            # 商品系统（API 控制器映射 /api/product/**，透传）
+            - id: product_route
+              uri: lb://mall-product
+              predicates:
+                - Path=/api/product/**
+
+            # 优惠券系统（web CRUD 控制器映射 /coupon/**，剥离 /api）
+            - id: coupon_route
+              uri: lb://mall-coupon
+              predicates:
+                - Path=/api/coupon/**
+              filters:
+                - RewritePath=/api/(?<segment>.*),/$\{segment}
+
+            # 第三方服务
+            - id: third_party_route
+              uri: lb://mall-third-party
+              predicates:
+                - Path=/api/thirdparty/**
+              filters:
+                - RewritePath=/api/thirdparty/(?<segment>.*),/$\{segment}
+
+            # 第三方服务 Minio 文件上传（MinioController 映射 /file/**，剥离 /api/file）
+            - id: third_party_file_route
+              uri: lb://mall-third-party
+              predicates:
+                - Path=/api/file/**
+              filters:
+                - RewritePath=/api/file/(?<segment>.*),/file/$\{segment}
+
+            # 认证系统（API 控制器映射 /api/auth/**、/api/sms/**，透传）
+            - id: auth_route
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/auth/**,/api/sms/**
+
+            # 图形验证码（控制器映射 /captcha.jpg，剥离 /api）
+            - id: auth_captcha_route
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/captcha.jpg
+              filters:
+                - RewritePath=/api/(?<segment>.*),/${segment}
+
+            # 后台管理-旧（控制器映射 /admin/**，剥离 /api）
+            - id: admin_route
+              uri: lb://mall-admin
+              predicates:
+                - Path=/api/admin/**
+              filters:
+                - RewritePath=/api/(?<segment>.*),/${segment}
+
+            # 后台管理-旧（定时任务调度，保留在 mall-admin，剥离 /api）
+            - id: admin_schedule_route
+              uri: lb://mall-admin
+              predicates:
+                - Path=/api/sys/schedule/**,/api/sys/scheduleLog/**
+              filters:
+                - RewritePath=/api/(?<segment>.*),/${segment}
+
+            # 后台管理-新权限系统（控制器映射 /sys/**，mall-auth，剥离 /api）
+            - id: sys_perm_route
+              uri: lb://mall-auth
+              predicates:
+                - Path=/api/sys/**
+              filters:
+                - RewritePath=/api/(?<segment>.*),/${segment}
+
+            # 购物车（API 控制器映射 /api/cart/**，透传）
+            - id: cart_route
+              uri: lb://mall-cart
+              predicates:
+                - Path=/api/cart/**
+
+            # 搜索（API 控制器映射 /api/search/**，透传）
+            - id: search_route
+              uri: lb://mall-search
+              predicates:
+                - Path=/api/search/**
+
+            # 秒杀（API 控制器映射 /api/seckill/**，透传）
+            - id: seckill_route
+              uri: lb://mall-seckill
+              predicates:
+                - Path=/api/seckill/**
+
+            # 订单系统（API 控制器映射 /api/order/**，透传）
+            - id: order_route
+              uri: lb://mall-order
+              predicates:
+                - Path=/api/order/**
+
+            # 页面访问（Host 路由）
+            - id: mall_host_route
+              uri: lb://mall-product
+              predicates:
+                - Host=example.com, item.example.com
+
+            - id: auth_page_route
+              uri: lb://mall-auth
+              predicates:
+                - Host=auth.example.com
+
+            - id: mall_search_route
+              uri: lb://mall-search
+              predicates:
+                - Host=search.example.com
+
+            - id: mall_cart_route
+              uri: lb://mall-cart
+              predicates:
+                - Host=cart.example.com
+
+            - id: mall_order_route
+              uri: lb://mall-order
+              predicates:
+                - Host=order.example.com
+
+            - id: mall_member_route
+              uri: lb://mall-member
+              predicates:
+                - Host=member.example.com
+
+            - id: mall_seckill_route
+              uri: lb://mall-seckill
+              predicates:
+                - Host=seckill.example.com
+
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+
+  main:
+    web-application-type: reactive
+  application:
+    name: mall-gateway

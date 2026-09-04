@@ -1,0 +1,14 @@
+<settings>
+    <!-- 设置本地仓库位置（跨平台） -->
+    <localRepository>${user.home}/.m2/repository</localRepository>
+    <mirrors>
+        <mirror>
+            <id>nexus-aliyun</id>
+            <mirrorOf>central</mirrorOf>
+            <name>Nexus aliyun</name>
+            <!-- 必须使用 HTTPS：Maven 3.8+ 默认拦截 HTTP 仓库（maven-default-http-blocker），
+                 否则全新环境依赖全部下载失败（IDEA 报“程序包不存在”） -->
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+    </mirrors>
+</settings>

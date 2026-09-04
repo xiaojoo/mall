@@ -1,0 +1,54 @@
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.0/deploy/static/provider/baremetal/deploy.yaml
+
+kubectl -n ingress-nginx edit deployment ingress-nginx-controller
+
+# 修改ingress-controller的网络模式
+spec:               
+  hostNetwork: true    #####添加此处配置，修改为主机模式
+  containers:       
+  - args:           
+    - /nginx-ingress-controller
+    - --election-id=ingress-nginx-leader
+    - --controller-class=k8s.io/ingress-nginx
+    - --ingress-class=nginx
+    - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
+    - --validating-webhook=:8443
+    - --validating-webhook-certificate=/usr/local/certificates/cert
+    - --validating-webhook-key=/usr/local/certificates/key
+    env:            
+    - name: POD_NAME
+
+kubectl apply -f deploy.yaml
+
+kubectl get po -n ingress-nginx
+
+kubectl get po -n ingress-nginx -o wide
+
+kubectl apply -f nginx-tomcat.yaml
+
+kubectl get po -o wide
+
+kubectl get svc
+
+curl localhost
+
+curl localhost:8080
+
+kubectl apply -f ingress.yaml
+
+kubectl get ingress
+
+localhost test.nginx.com test.tomcat.com
+
+
+openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -keyout tls.key -out tls.crt -subj "/C=CN/ST=BJ/L=BJ/O=nginx/CN=test.com"  ###注意此处的域名
+
+kubectl create secret tls tls-secret --key tls.key --cert tls.crt
+
+kubectl get secret  | grep tls-secret
+
+kubectl apply -f ingress-https.yaml
+
+localhost nginx.test.com tomcat.test.com
+
+参考链接：https://blog.csdn.net/weixin_40579389/article/details/134338494

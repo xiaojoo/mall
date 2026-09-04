@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-nginx                    # 自定义 ingress 名称
+  namespace: ingress-nginx
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"  # 设置为默认 IngressClass
+spec:
+  ingressClassName: nginx                # 使用 spec.ingressClassName 替代注解
+  rules:
+  - host: www.kubemsb.com                # 自定义域名
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"                        # 匹配路径
+        backend:
+          service:
+            name: nginx-service          # 对应的 service 名称
+            port:
+              number: 80                 # Service 的端口

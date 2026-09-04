@@ -1,0 +1,31 @@
+spring:
+  cloud:
+    nacos:
+      # 服务注册地址
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+    alicloud:
+      access-key: CHANGE_ME_OSS_ACCESS_KEY
+      secret-key: CHANGE_ME_OSS_SECRET_KEY
+      oss:
+        endpoint: oss-cn-beijing.aliyuncs.com
+        bucket: mall-xiaojoo
+      sms:
+        host: https://wwsms.market.alicloudapi.com
+        path: /send_sms
+        appcode: CHANGE_ME_SMS_APPCODE
+        sign: CST_11253
+        skin: 908e94ccf08b4476ba6c876d13f084ad
+    util:
+      enabled: false
+  application:
+    name: mall-third-party
+wx:
+  mp:
+    #    callback: http://f4cd-113-92-129-127.ngrok.io
+    callback: http://your-tunnel.example.com
+    configs:
+      - appId:                 # 第一个公众号的appid
+        secret:  # 公众号的appsecret
+        token: sdfsf                             # 接口配置里的Token值
+        aesKey: ${mall.wx.aesKey}                # 接口配置里的EncodingAESKey值

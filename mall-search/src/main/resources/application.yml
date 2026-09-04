@@ -1,0 +1,19 @@
+spring:
+  config:
+    import: "nacos:mall-search.yaml"
+  cloud:
+    nacos:
+      server-addr: ${SERVER_IP:localhost}:8848
+      discovery:
+        server-addr: ${SERVER_IP:localhost}:8848
+  data:
+    redis:
+      host: ${SERVER_IP:localhost}
+      port: 6379
+      password: CHANGE_ME
+  application:
+    name: mall-search
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+  elasticsearch:
+    uris: ${SERVER_IP:localhost}:9200

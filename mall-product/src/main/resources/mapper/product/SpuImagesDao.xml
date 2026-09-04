@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.mall.product.dao.SpuImagesDao">
+
+	<!-- 可根据自己的需求，是否要使用 -->
+    <resultMap type="com.mall.product.entity.SpuImagesEntity" id="spuImagesMap">
+        <result property="id" column="id"/>
+        <result property="spuId" column="spu_id"/>
+        <result property="imgName" column="img_name"/>
+        <result property="imgUrl" column="img_url"/>
+        <result property="imgSort" column="img_sort"/>
+        <result property="defaultImg" column="default_img"/>
+    </resultMap>
+<!--    <insert id="saveImagesBatch">-->
+<!--        INSERT INTO `pms_spu_images` (spu_id, img_url)-->
+<!--        VALUES-->
+<!--        <foreach collection="ImagesEntity" item="item" separator=",">-->
+<!--            (#{item.spuId}, #{item.imgUrl})-->
+<!--        </foreach>-->
+<!--    </insert>-->
+
+
+</mapper>
