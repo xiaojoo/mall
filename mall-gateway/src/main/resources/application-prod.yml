@@ -65,6 +65,12 @@ spring:
               filters:
                 - RewritePath=/api/(?<segment>.*),/${segment}
 
+            # 微博 OAuth 回调（透传到 mall-auth，路径不变）
+            - id: oauth_weibo_callback_route
+              uri: lb://mall-auth
+              predicates:
+                - Path=/oauth2.0/weibo/**,/oauth2.0/weibo
+
             # 后台管理-旧（控制器映射 /admin/**，剥离 /api）
             - id: admin_route
               uri: lb://mall-admin
