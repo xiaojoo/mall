@@ -56,6 +56,11 @@ spring:
               predicates:
                 - Path=/api/auth/**,/api/sms/**
 
+            # 微博 OAuth 回调（透传到 mall-auth，路径不变）
+            - id: mall-auth-oauth-callback
+              uri: lb://mall-auth
+              predicates:
+                - Path=/oauth2.0/weibo/**,/oauth2.0/weibo
             # 图形验证码（控制器映射 /captcha.jpg，剥离 /api）
             - id: mall-auth-captcha
               uri: lb://mall-auth

@@ -66,12 +66,12 @@ member:
 weibo:
   client-id: CHANGE_ME_WEIBO_CLIENT_ID
   client-secret: CHANGE_ME_WEIBO_CLIENT_SECRET
-  redirect-uri: http://auth.example.com/oauth2.0/weibo/success
+  redirect-uri: http://${SERVER_IP:localhost}:88/oauth2.0/weibo/success
   api-host: https://api.weibo.com
 
 # 会员/登录跳转前端地址（按需修改）
 mall:
   oauth:
-    success-redirect: http://example.com/index.html
-    token-redirect: http://localhost:5173/?token=
-    login-redirect: http://localhost:5173/#/login
+    success-redirect: http://${SERVER_IP:localhost}/
+    token-redirect: http://${SERVER_IP:localhost}/?token=
+    login-redirect: http://${SERVER_IP:localhost}/#/login
