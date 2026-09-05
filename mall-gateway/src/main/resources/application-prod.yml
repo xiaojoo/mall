@@ -142,7 +142,7 @@ spring:
             - id: mall_member_route
               uri: lb://mall-member
               predicates:
-                - Host=member.example.com
+                - Host=${SERVER_IP:localhost}
 
             - id: mall_seckill_route
               uri: lb://mall-seckill

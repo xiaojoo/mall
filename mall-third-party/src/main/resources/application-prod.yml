@@ -23,7 +23,7 @@ spring:
 wx:
   mp:
     #    callback: http://f4cd-113-92-129-127.ngrok.io
-    callback: http://your-tunnel.example.com
+    callback: http://${SERVER_IP:localhost}
     configs:
       - appId:                 # 第一个公众号的appid
         secret:  # 公众号的appsecret
