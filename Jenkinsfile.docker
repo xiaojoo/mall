@@ -52,6 +52,9 @@ pipeline {
           if (!ip) { ip = sh(script: "hostname -I 2>/dev/null | awk '{for(i=1;i<=NF;i++) if(\$i!=\"127.0.0.1\"){print \$i; break}}'", returnStdout: true).trim() }
           env.SERVER_IP = ip ?: '127.0.0.1'
           echo "SERVER_IP=${env.SERVER_IP}"
+          // —— 打印本次构建使用的代码提交（方便确认是否最新；GitHub 上 main 的最新 SHA 见 git ls-remote）——
+          echo "GIT_COMMIT=${env.GIT_COMMIT}"
+          sh 'echo "本地HEAD: $(git rev-parse --short HEAD)  $(git log -1 --oneline)"'
           // —— 模块名：由 Job 参数 PROJECT_NAME 注入。拆成 13 条流水线时每条固定传一个模块，即可并行 ——
           env.PROJECT_NAME = (env.PROJECT_NAME ?: '').trim()
           if (!env.PROJECT_NAME) {
