@@ -165,7 +165,7 @@ public class MemberServiceImpl extends ServiceImpl<MemberDao, MemberEntity> impl
                     update.setHeader(jo.getString("profile_image_url"));
                 }
             } catch (Exception e) {
-                log.warn("微博登录刷新用户资料失败: {}", e.getMessage());
+                log.warn("微博登录刷新用户资料失败: " + e.getMessage());
             }
             this.baseMapper.updateById(update);
 
