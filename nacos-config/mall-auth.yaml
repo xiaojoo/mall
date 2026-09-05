@@ -72,6 +72,6 @@ weibo:
 # 会员/登录跳转前端地址（按需修改）
 mall:
   oauth:
-    success-redirect: http://${SERVER_IP:localhost}/
-    token-redirect: http://${SERVER_IP:localhost}/?token=
-    login-redirect: http://${SERVER_IP:localhost}/#/login
+    success-redirect: http://${SERVER_IP:localhost}:8088/
+    token-redirect: http://${SERVER_IP:localhost}:8088/?token=
+    login-redirect: http://${SERVER_IP:localhost}:8088/#/login
