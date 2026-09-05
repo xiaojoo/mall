@@ -54,3 +54,8 @@ logging:
     root: INFO
     com.mall.admin: DEBUG
     org.springdoc: error
+
+# mall-admin 校验 mall-auth 签发的 JWT 所需密钥（与 mall-auth 的 auth.jwt.secret 保持一致）
+auth:
+  jwt:
+    secret: ${AUTH_JWT_SECRET:YOUR_AUTH_JWT_SECRET_AT_LEAST_32_BYTES}

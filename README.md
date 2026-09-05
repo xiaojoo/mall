@@ -311,6 +311,94 @@ docker build -t mall/<service-name>:latest .
 | [mall-weapp-mini](https://gitee.com/xiaono/mall-weapp-mini) | 微信小程序前端（独立仓库） |
 | `mall-weapp/` | 微信小程序后端服务（本仓库内） |
 
+## 📋 安全与架构审计记录（2026-09-03）
+
+> 本节为**只读分析记录**（不自动修复）。基于代码 + 配置的实证排查，涉及四个方向：
+> ① Shiro→Spring Security 迁移、② mall-auth 与 mall-admin 路由/表归属、③ 安全配置审计、④ 编译验证。
+>
+> **开源脱敏说明（已执行）**：为开源已将源码中的个人邮箱/姓名、真实密钥、内网 IP、私有域名替换为占位符。
+> - 占位约定：`localhost` 表示**本地/本机**；`example.com` 表示示例域名；`CHANGE_ME_*` / `YOUR_*` / `CHANGE_ME` 表示**需自行填写**的密钥或密码占位。
+> - 默认后台账号：`admin / admin123`（公共占位密码，部署后请立即修改）。
+> - ⚠️ 仍建议：git 历史中残留作者邮箱与旧密钥，公开前请用全新历史或 `git filter-repo` 重写；相关平台侧密钥请作废/轮换。
+
+### ① Shiro → Spring Security 迁移：已完成
+
+- 全库（含所有 `pom.xml`、`.java`）检索 `shiro` / `org.apache.shiro`：**0 处实际引用**（仅 `UPGRADE_LOG.md` 作为历史记录）。
+- 文档标注含 Shiro 的 `com.mall.member.sys.*` 包（`ShiroUtils`/`JWTFilter`/`JWTRealm`/`ShiroService`/`ShiroServiceImpl`/`AbstractController`）**已整体删除**。
+- 权限代码已迁至 **`mall-auth` 的 `perm` 包**，为**自定义 `@RequirePermission` + `PermissionInterceptor` + JJWT** 方案，**非 Spring Security 框架**；仅使用 `spring-security-crypto`(BCrypt)、`spring-security-core`(AccessDeniedException)。
+- `.m2` 中残留 `shiro-*` jar 为旧项目无引用缓存，无害，可清理。
+- **结论**：Shiro 迁移在代码层面已闭环；`UPGRADE_LOG.md`/`docs/` 相关表述已过期。无修复动作。
+
+### ② mall-auth 与 mall-admin 路由/表归属：无直接路由冲突，但有真实隐患
+
+**路由归属**（`nacos-config/mall-gateway.yaml`）：
+
+| 路径 | 后端 | 说明 |
+|---|---|---|
+| `/api/sys/schedule/**`、`/api/sys/scheduleLog/**` | mall-admin | 定时任务未迁移；路由在前，避免被吞（正确） |
+| `/api/sys/**`（其余全部） | mall-auth | RBAC + JWT 主系统 |
+| `/api/member|product|order|cart|search|seckill|auth|sms/**` | 各业务服务 | 透传 |
+| `/api/ware|coupon|weapp/**` | 各业务服务 | StripPrefix |
+| `/api/thirdparty/**`、`/api/file/**` | mall-third-party | RewritePath |
+
+- 路由优先级正确（`mall-admin-schedule` 位于 `mall-auth-sys` 之前），`/api/sys/**` 已从旧 mall-admin 切到 mall-auth。
+
+**表归属**：
+
+- `mall-auth` → `mall_auth` 库（RBAC 六表）。`mall-admin` → `mall_admin` 库（renren 旧 schema）。两库同名表但库不同，**无 DB 冲突**，仅命名混淆。
+- `db/mall_admin.sql` 为清理脚本：A 组删（`sys_user/role/menu/user_role/role_menu/log`）、B 组删（`sys_user_token/sys_captcha/sys_config/sys_oss/tb_user/QRTZ_×11`）、C 组保留（`schedule_job/schedule_job_log`）。
+
+**🔴 真实隐患**：
+
+1. **`mall-admin` 的 `AdminAuthInterceptor` 为空壳**：只判断 `token != null`，**从不校验**（`SysUserTokenService` 注入未使用，注释"为简单、生产用 Redis"），随后无条件 `return true`。→ 访问 mall-admin 受拦路径（含 `/sys/schedule/**`）任意 `token: xxxx` 即通过，形同未鉴权。
+2. **鉴权体系脱节**：mall-admin 用自己的 `/sys/login` 签发 renren 式 token（`sys_user_token` 表，已被列为删除），但网关把 `/api/sys/login`、`/api/sys/**` 全部发给 mall-auth。当前前端任务调度页可用，**仅因空壳拦截器放行一切**；若补全 mall-admin 校验，前端携带的 mall-auth JWT 将无法被其校验，任务调度页立即 401。
+3. **僵尸控制器**：mall-admin 的 `SysUser/SysRole/SysMenu/SysLog/SysConfig/SysOssController` 仍存在，但其后端表已被列为删除，直接访问会因表缺失报错；仅 `SysScheduleJobController(-Log)` 在服役。
+4. **路由死区**：`/api/sys/config/**`、`/api/sys/oss/**` 落在 mall-auth，但 mall-auth 无对应控制器 → 404。`db/mall_admin.sql` 注释确认 mall-web 已不调用 `/sys/config`、上传走 `/thirdparty/oss`，**当前无害**。
+
+### ③ 安全配置审计
+
+**🔴 高危：真实密钥已提交进仓库**
+
+| 密钥 | 位置 |
+|---|---|
+| 微博 OAuth `client_secret` | `mall-auth/.../OAuth2Controller.java:31`（含 `client_id`、`redirect_uri` 硬编码） |
+| 微信 MP AppSecret | `mall-third-party/src/main/resources/application.yml:34`、`application-prod.yml`、`nacos-config/mall-third-party.yaml:67` |
+| 阿里云 OSS `secret-key` | `nacos-config/mall-third-party.yaml:28`、`application.yml:12`、`application-prod.yml:9` |
+| MinIO 默认弱口令 | `application.properties`(`CHANGE_ME_MINIO`)、nacos(`accessKey/secretKey → CHANGE_ME`) |
+
+**🟠 中危：JWT 默认 secret（有覆盖机制，但仓库值为占位）**
+
+- `auth.jwt.secret = YOUR_AUTH_JWT_SECRET_AT_LEAST_32_BYTES`（`JwtProperties` 默认值 + `mall-auth/application.yml` + `nacos-config/mall-auth.yaml`）
+- `member.jwt.secret = YOUR_MEMBER_JWT_SECRET_AT_LEAST_32_BYTES`（`MemberJwtUtils` 默认值，并复制到 5 处 `nacos-config/mall-{auth,order,cart,member,third-party}.yaml` 及各 `application.yml`，易漂移）
+- 若 Nacos 未覆盖，任何读到仓库的人可伪造管理员/会员 token。
+
+**🟢 中低危：鉴权边界与潜在越权点**
+
+- `PermissionInterceptor` **fail-open**：`/sys/**` 下未标 `@RequirePermission` 的方法，仅需合法 JWT 即可访问，不校验具体权限。已排查：`/sys/role/select`、`/sys/menu/select` 会向任意登录用户泄露完整角色/菜单（含权限码）；`/sys/user/updatePassword|profile|perms`、`/sys/log/stats`、`/sys/menu/nav` 为自服务类，设计合理。
+- ✅ 安全特性：`SysUserController.updatePassword/profile` 以 JWT 解析的 `userId` 为准、忽略 body，防越权改他人。
+- 文档/代码不一致：`@RequirePermission#logical` 默认 **AND**（代码） vs 文档称默认 OR（AND 更严，实际更安全）。
+- 超管旁路：`userId==1L` 或含 `*:*:*`（硬编码，预期设计）。
+- `mall-auth` 网关无 `/api/app/**` 路由 → `app` 包（`AppRegisterController`/`AppTestController`/`AuthorizationInterceptor`/`JwtUtils`）**不对外暴露**；且 `JwtUtils` 的 `renren.jwt.*` 在**任何配置中都未定义**（secret 回退硬编码、`expire` 默认 0、`header` 为 null）——遗留/死代码。
+- 会员端：`LoginUserInterceptor`(order) 对 `/api/order/**` **fail-closed**（无/无效 JWT → 401），对管理端 `/api/order/order/**`、`/api/order/orderreturnapply/**` **显式放行**（admin JWT 绕过会员校验），需确认这些接口有上游权限校验。
+
+### ④ 编译验证 `mvn clean install`
+
+- **本环境无法完成**（非代码问题）：沙箱**无外网**（Maven Central、阿里云镜像均 SSL 失败），且本地 `.m2` 缺少精确版本 —— 需 `spring-cloud-dependencies:2025.1.2` 与 `spring-cloud-alibaba-dependencies:2025.1.0.0`，本地仅 `2025.1.0`/`2025.0.0.0`。
+- 构建在**父 POM 依赖解析阶段**即失败（`Non-resolvable import POM ... .part.lock`），未进入模块编译，**无代码级编译错误信息**。
+- 旁证：14 个模块 `target/` 均存在**先前成功编译产物**（`*.jar` + compiled `*.class`），说明有网环境曾通过构建。
+- 建议：在有网环境或补齐上述版本后执行 `mvn clean install -DskipTests`。
+
+### 汇总优先级
+
+| 优先级 | 问题 | 涉及 |
+|---|---|---|
+| P0 安全漏洞 | mall-admin 空壳拦截器形同未鉴权（schedule 接口） | mall-admin |
+| P0 密钥泄露 | 微博/微信/OSS/MinIO 密钥入库 | mall-auth / mall-third-party |
+| P1 密钥默认值 | `auth.jwt.secret`/`member.jwt.secret` 占位值需生产覆盖、去重 | mall-auth / mall-common |
+| P1 遗留清理 | mall-admin 僵尸控制器 + `/api/sys/config|oss` 路由死区 + `renren.jwt`/`/app/**` 死代码 | mall-admin / mall-auth / gateway |
+| P2 越权细化 | `/sys/role/select`、`/sys/menu/select` 信息泄露 | mall-auth |
+| P2 文档修正 | `@RequirePermission` 默认 logical、Shiro 状态表述 | docs |
+
 ---
 
 ## License
