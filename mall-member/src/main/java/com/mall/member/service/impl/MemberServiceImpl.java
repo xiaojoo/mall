@@ -147,11 +147,26 @@ public class MemberServiceImpl extends ServiceImpl<MemberDao, MemberEntity> impl
         MemberEntity memberEntity = this.baseMapper.selectOne(new LambdaQueryWrapper<MemberEntity>().eq(MemberEntity::getSocialUid, uid));
         if (memberEntity != null) {
             // 这个用户已经注册过
-            // 更新用户的访问令牌的时间和access_token
+            // 更新访问令牌和有效期，并刷新微博昵称/头像/性别（微博资料可能变化）
             MemberEntity update = new MemberEntity();
             update.setId(memberEntity.getId());
             update.setAccessToken(socialUser.getAccess_token());
             update.setExpiresIn(socialUser.getExpires_in());
+            try {
+                Map<String, String> query = new HashMap<>();
+                query.put("access_token", socialUser.getAccess_token());
+                query.put("uid", uid);
+                HttpResponse response = HttpUtils.doGet(weiboApiHost, "/2/users/show.json", "get", new HashMap<>(), query);
+                if (response.getStatusLine().getStatusCode() == 200) {
+                    JSONObject jo = JSON.parseObject(org.apache.http.util.EntityUtils.toString(response.getEntity()));
+                    update.setNickname(jo.getString("name"));
+                    String gender = jo.getString("gender");
+                    update.setGender("m".equals(gender) ? 1 : 0);
+                    update.setHeader(jo.getString("profile_image_url"));
+                }
+            } catch (Exception e) {
+                log.warn("微博登录刷新用户资料失败: {}", e.getMessage());
+            }
             this.baseMapper.updateById(update);
 
             memberEntity.setAccessToken(socialUser.getAccess_token());
