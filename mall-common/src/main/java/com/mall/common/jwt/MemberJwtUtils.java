@@ -23,7 +23,9 @@ import java.util.Date;
 @ConfigurationProperties(prefix = "member.jwt")
 public class MemberJwtUtils {
 
-    /** 签名密钥（HS256 要求 ≥ 32 字节，生产环境务必通过 nacos 覆盖） */
+    /** 签名密钥（HS256 要求 ≥ 32 字节）。
+     *  唯一默认源在此；多服务共用：全部通过环境变量 MEMBER_JWT_SECRET 统一覆盖（Spring 松弛绑定 member.jwt.secret），
+     *  切勿在各 nacos-config 文件里各自复制一份，避免漂移。 */
     private String secret = "YOUR_MEMBER_JWT_SECRET_AT_LEAST_32_BYTES";
 
     /** 有效期（秒），默认 7 天 */

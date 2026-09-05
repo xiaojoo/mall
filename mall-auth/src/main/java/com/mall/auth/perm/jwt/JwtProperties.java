@@ -13,7 +13,9 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "auth.jwt")
 public class JwtProperties {
 
-    /** 签名密钥（HS256 要求 ≥ 32 字节，生产环境务必通过配置中心覆盖） */
+    /** 签名密钥（HS256 要求 ≥ 32 字节）。
+     *  唯一默认源在此；mall-auth 与 mall-admin 共用：通过环境变量 AUTH_JWT_SECRET 统一覆盖（Spring 松弛绑定 auth.jwt.secret），
+     *  切勿在两个 nacos 配置文件里各写一份不同值，否则导致签名/校验不一致。 */
     private String secret = "YOUR_AUTH_JWT_SECRET_AT_LEAST_32_BYTES";
 
     /** access token 有效期（秒），默认 30 分钟 */
