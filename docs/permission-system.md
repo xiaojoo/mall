@@ -162,7 +162,7 @@ public List<SysMenuEntity> list() { ... }
 
 1. 从 session / request attribute 取 `userId`，取不到返回 401
 2. `userId == 1`（超管）直接放行
-3. 查询用户权限列表，`@RequirePermission` 支持 `logical = AND / OR`（默认 OR）
+3. 查询用户权限列表，`@RequirePermission` 支持 `logical = AND / OR`（默认 AND）
 4. 无权限返回 403
 
 > **重要**：前端隐藏按钮只是体验优化，**真正的安全边界在后端注解**。新增敏感接口务必加 `@RequirePermission`。

@@ -84,6 +84,7 @@ public class SysRoleController {
     }
 
     @GetMapping("/select")
+    @RequirePermission("sys:role:list")
     @Operation(summary = "角色下拉列表")
     public Map<String, Object> select() {
         List<SysRoleEntity> list = sysRoleService.list();

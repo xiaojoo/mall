@@ -90,6 +90,7 @@ public class SysMenuController {
     }
 
     @GetMapping("/select")
+    @RequirePermission("sys:menu:list")
     @Operation(summary = "菜单下拉树（用于角色分配菜单）")
     public Map<String, Object> select() {
         List<SysMenuEntity> menuList = sysMenuService.queryNotButtonList();
