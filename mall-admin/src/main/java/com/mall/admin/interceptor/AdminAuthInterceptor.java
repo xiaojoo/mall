@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.crypto.SecretKey;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
