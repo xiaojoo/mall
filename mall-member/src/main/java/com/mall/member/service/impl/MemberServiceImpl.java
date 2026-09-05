@@ -32,6 +32,7 @@ import com.mall.common.utils.Query;
 import com.mall.member.dao.MemberDao;
 import com.mall.member.entity.MemberEntity;
 import com.mall.member.service.MemberService;
+import com.mall.member.service.MinioService;
 import lombok.RequiredArgsConstructor;
 
 
@@ -40,10 +41,37 @@ import lombok.RequiredArgsConstructor;
 public class MemberServiceImpl extends ServiceImpl<MemberDao, MemberEntity> implements MemberService {
 
     private final MemberLevelDao memberLevelDao;
+    private final MinioService minioService;
 
     // 微博 API 基址（来自 Nacos mall-member 配置）
     @Value("${weibo.api-host:https://api.weibo.com}")
     private String weiboApiHost;
+
+    /** 下载远程图片字节（如微博头像） */
+    private byte[] downloadImage(String url) {
+        try (java.io.InputStream is = new java.net.URL(url).openStream()) {
+            return is.readAllBytes();
+        } catch (Exception e) {
+            log.warn("下载头像失败: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** 把远程头像转存到本地 MinIO，返回本地 URL；失败则回退原 URL */
+    private String storeAvatar(String profileImageUrl) {
+        if (StringUtils.isBlank(profileImageUrl)) {
+            return profileImageUrl;
+        }
+        try {
+            byte[] img = downloadImage(profileImageUrl);
+            if (img != null && img.length > 0) {
+                return minioService.uploadAvatar(img, "image/jpeg", ".jpg");
+            }
+        } catch (Exception e) {
+            log.warn("头像转存MinIO失败: " + e.getMessage());
+        }
+        return profileImageUrl;
+    }
 
     @Override
     public PageUtils queryPage(Map<String, Object> params) {
@@ -162,7 +190,7 @@ public class MemberServiceImpl extends ServiceImpl<MemberDao, MemberEntity> impl
                     update.setNickname(jo.getString("name"));
                     String gender = jo.getString("gender");
                     update.setGender("m".equals(gender) ? 1 : 0);
-                    update.setHeader(jo.getString("profile_image_url"));
+                    update.setHeader(storeAvatar(jo.getString("profile_image_url")));
                 }
             } catch (Exception e) {
                 log.warn("微博登录刷新用户资料失败: " + e.getMessage());
@@ -191,7 +219,7 @@ public class MemberServiceImpl extends ServiceImpl<MemberDao, MemberEntity> impl
 
                 register.setNickname(name);
                 register.setGender("m".equals(gender)?1:0);
-                register.setHeader(profileImageUrl);
+                register.setHeader(storeAvatar(profileImageUrl));
                 register.setCreateTime(new Date());
                 register.setSocialUid(socialUser.getUid());
                 register.setAccessToken(socialUser.getAccess_token());
